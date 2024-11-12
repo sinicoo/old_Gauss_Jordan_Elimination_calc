@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gauss-Jordan Elimination</title>
+    <style>
+        /* CSS styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #333;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: #444;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            text-align: center;
+            max-width: 500px; /* Adjust as needed */
+            width: 90%;
+            margin-top: 10px;
+        }
+
+        h1 {
+            color: #ff8c00;
+        }
+
+        p {
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 80%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #888;
+            border-radius: 4px;
+            resize: none;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+            background-color: #555;
+            color: #fff;
+        }
+
+        button { 
+            margin-top:5px;
+            background-color: #ff8c00;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #ff7f00;
+        }
+
+        #solution {
+            text-align: left;
+            margin-top: 0;
+            color: #ddd;
+            border-top: 0px solid #888;
+            padding-top: 0px;
+    
+        }
+
+        #solution h2 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin: 0 auto; /* Center the table horizontally */
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #ff7f00;
+        }
+
+        #steps {
+            text-align: left;
+            margin-top: 0;
+            color: #fff;
+            border-top: 0px solid #888;
+            padding-top: 0px;
+          
+        }
+
+        #steps pre {
+            margin: 0;
+            padding: 0;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+    <div class="container">
+        <h1>Gauss-Jordan Elimination</h1>
+        <p>Enter the system of linear equations:</p>
+        <textarea id="equations" rows="5" cols="50" placeholder="Enter equations here..."></textarea>
+        <br>
+        <input type="checkbox" id="showStepsCheckbox">
+        <label for="showStepsCheckbox">Show Steps</label>
+        <br>
+        <button onclick="solveEquations()">Solve</button>
+        <div id="solution"></div>
+        <div id="final-matrix"></div>
+        <div id="steps"></div> <!-- This is where the steps will be displayed -->
+    </div>
+    <footer style="text-align: center; margin-top: 10px; margin-bottom: 10px; color: #888;">
+        Created by: Patrick Lawrence Gomez & Nicolai Isaiah Santos
+    </footer>
+</div>
+    <script>
+        function parseEquation(equation) {
+            equation = equation.replace(/\s/g, '');
+            equation = equation.split('=');
+            let coefficientsStr = equation[0];
+            let constantStr = equation[1];
+
+            let terms = coefficientsStr.replace('-', '+-').split('+');
+            let coefficients = terms.map(term => {
+                if (term.includes('x')) return parseFloat(term.replace('x', '') || '1');
+                else if (term.includes('y')) return parseFloat(term.replace('y', '') || '1');
+                else if (term.includes('z')) return parseFloat(term.replace('z', '') || '1');
+                else return 0;
+            });
+            let constant = parseFloat(constantStr);
+            return [coefficients, constant];
+        }
+
+        function solveEquations() {
+            document.getElementById('steps').style.borderTop = '1px solid #888';
+            document.getElementById('steps').style.marginTop = '20px';
+            document.getElementById('solution').style.borderTop = '1px solid #888';
+            document.getElementById('solution').style.marginTop = '20px';
+
+            let equationsTextArea = document.getElementById('equations');
+            let equations = equationsTextArea.value.split('\n').map(eq => eq.trim()).filter(eq => eq !== '');
+            
+            // Check if input is empty
+            if (equations.length === 0) {
+                alert("Please enter at least one equation.");
+                return;
+            }
+        
+            let A = [];
+            let b = [];
+            equations.forEach(equation => {
+                let [coefficients, constant] = parseEquation(equation);
+                A.push(coefficients);
+                b.push([constant]);
+            });
+        
+            let n = A.length;
+        
+            // Initialize an array to store each step of the elimination process
+            let steps = [];
+        
+            for (let i = 0; i < n; i++) {
+                // Create a copy of the current state of A and b
+                let currentStep = {
+                    A: JSON.parse(JSON.stringify(A)),
+                    b: JSON.parse(JSON.stringify(b)),
+                    description: ""
+                };
+        
+                // Partial pivoting
+                let maxRow = i;
+                for (let j = i + 1; j < n; j++) {
+                    if (Math.abs(A[j][i]) > Math.abs(A[maxRow][i])) {
+                        maxRow = j;
+                    }
+                }
+                if (maxRow !== i) {
+                    [A[i], A[maxRow]] = [A[maxRow], A[i]];
+                    [b[i], b[maxRow]] = [b[maxRow], b[i]];
+                    currentStep.description += `Partial pivoting: Swapped row ${i + 1} with row ${maxRow + 1}.<br>`;
+                }
+        
+                // Make the diagonal entries 1
+                let divisor = A[i][i];
+                for (let j = i; j < n; j++) {
+                    A[i][j] /= divisor;
+                }
+                b[i][0] /= divisor;
+                currentStep.description += `Normalized row ${i + 1} by dividing it by ${divisor}.<br>`;
+        
+                // Make other entries in the column 0
+                for (let j = 0; j < n; j++) {
+                    if (j !== i) {
+                        let multiplier = A[j][i];
+                        for (let k = i; k < n; k++) {
+                            A[j][k] -= multiplier * A[i][k];
+                        }
+                        b[j][0] -= multiplier * b[i][0];
+                        currentStep.description += `Eliminated variable x${i + 1} from row ${j + 1}.<br>`;
+                    }
+                }
+        
+                // Store the current step in the steps array
+                steps.push(currentStep);
+            }
+        
+            // Display each step in a table with a description
+            let finalMatrixDiv = document.getElementById('final-matrix');
+            finalMatrixDiv.innerHTML = '';
+            let showStepsCheckbox = document.getElementById('showStepsCheckbox');
+            let showSteps = showStepsCheckbox.checked;
+        
+            if (showSteps) {
+                let stepsDiv = document.getElementById('steps');
+                stepsDiv.innerHTML = '<h2>Steps</h2>';
+        
+                steps.forEach((step, index) => {
+                    let table = document.createElement('table');
+                    let caption = document.createElement('caption');
+                    caption.innerHTML = `Step ${index + 1}:<br>${step.description}`;
+                    table.appendChild(caption);
+        
+                    let thead = document.createElement('thead');
+                    let tbody = document.createElement('tbody');
+        
+                    // Create table header
+                    let headerRow = document.createElement('tr');
+                    for (let i = 0; i < n; i++) {
+                        let th = document.createElement('th');
+                        th.textContent = `x${i + 1}`;
+                        headerRow.appendChild(th);
+                    }
+                    let th = document.createElement('th');
+                    th.textContent = 'Constant';
+                    headerRow.appendChild(th);
+                    thead.appendChild(headerRow);
+        
+                    // Create table body
+                    for (let i = 0; i < n; i++) {
+                        let row = document.createElement('tr');
+                        for (let j = 0; j < n; j++) {
+                            let td = document.createElement('td');
+                            td.textContent = step.A[i][j].toFixed(2);
+                            row.appendChild(td);
+                        }
+                        let td = document.createElement('td');
+                        td.textContent = step.b[i][0].toFixed(2);
+                        row.appendChild(td);
+                        tbody.appendChild(row);
+                    }
+        
+                    table.appendChild(thead);
+                    table.appendChild(tbody);
+                    stepsDiv.appendChild(table);
+                });
+            } else {
+                // If showSteps checkbox is unchecked, clear the content of the stepsDiv
+                let stepsDiv = document.getElementById('steps');
+                stepsDiv.innerHTML = '';
+            }
+        
+            // Display the final matrix
+            let finalMatrixTable = document.createElement('table');
+            let finalMatrixCaption = document.createElement('caption');
+            finalMatrixCaption.textContent = 'Final Matrix';
+            finalMatrixCaption.style.textAlign = 'left';
+            finalMatrixCaption.style.font = 'bold 23px arial';
+            finalMatrixCaption.style.marginBottom = '10px';
+            finalMatrixTable.appendChild(finalMatrixCaption);
+        
+            let finalMatrixThead = document.createElement('thead');
+            let finalMatrixTbody = document.createElement('tbody');
+        
+            // Create table header
+            let finalMatrixHeaderRow = document.createElement('tr');
+            for (let i = 0; i < n; i++) {
+                let th = document.createElement('th');
+                th.textContent = `x${i + 1}`;
+                finalMatrixHeaderRow.appendChild(th);
+            }
+            let th = document.createElement('th');
+            th.textContent = 'Constant';
+            finalMatrixHeaderRow.appendChild(th);
+            finalMatrixThead.appendChild(finalMatrixHeaderRow);
+        
+            // Create table body with the final values
+            for (let i = 0; i < n; i++) {
+                let row = document.createElement('tr');
+                for (let j = 0; j < n; j++) {
+                    let td = document.createElement('td');
+                    td.textContent = A[i][j].toFixed(2);
+                    row.appendChild(td);
+                }
+                let td = document.createElement('td');
+                td.textContent = b[i][0].toFixed(2);
+                row.appendChild(td);
+                finalMatrixTbody.appendChild(row);
+            }
+        
+            finalMatrixTable.appendChild(finalMatrixThead);
+            finalMatrixTable.appendChild(finalMatrixTbody);
+            finalMatrixDiv.appendChild(finalMatrixTable);
+        }
+    </script>
+</body>
+</html>
